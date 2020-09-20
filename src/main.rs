@@ -1,3 +1,5 @@
+//GRAB_ME
+
 pub mod primitive;
 pub mod mmu;
 pub mod emulator;
@@ -20,8 +22,7 @@ use jitcache::JitCache;
 use aht::Aht;
 use falkhash::FalkHasher;
 use atomicvec::AtomicVec;
-use basic_mutator::{Mutator, InputDatabase, EmptyDatabase};
-
+use basic_mutator::{Mutator, InputDatabase, EmptyDatabase}; 
 /// If set, uses the enclosed string as a filename and uses it as the input
 /// without any corruption
 const REPRO_MODE: Option<&str> = None; //Some("crashes/0x69478_Read_Normal.crash");
@@ -86,6 +87,7 @@ struct Stat {
     __glibc_reserved: [i32; 2],
 }
 
+// Syscall table for handling calls coming from the program being fuzzed
 fn handle_syscall(emu: &mut Emulator) -> Result<(), VmExit> {
     // Get the syscall number
     let num = emu.reg(Register::A7);
@@ -494,6 +496,7 @@ fn worker(thr_id: usize, mut emu: Emulator, original: Arc<Emulator>,
                 let sel = rng.rand() % corpus.inputs.len();
                 if let Some(input) = corpus.inputs.get(sel) {
                     // Copy the input
+                    
                     options = u32::from_ne_bytes(
                         input.data[input.data.len() - 4..]
                         .try_into().unwrap());
@@ -850,6 +853,8 @@ pub fn load_elf<P: AsRef<Path>>(filename: P, emu: &mut Emulator)
     use std::process::Command;
 
     // Invoke readelf to get the LOAD section offsets and information
+    // Load section is part of the file image that gets mapped into memory
+    // readelf gives us this information without actually performing the memory mapping operation itself
     let output = Command::new("readelf")
         .arg("-W")
         .arg("-l")
@@ -984,6 +989,9 @@ fn main() -> io::Result<()> {
     const FUZZ_START_SYM: &str = "fuzzme";
     
     // Register breakpoints
+    // initialize CPU state
+    // Q: what are these functions used for? Something to do with libc and program loading
+    // Maybe these are libc routines that are called by the dynamic loader during runtime?
     emu.add_breakpoint(emu.resolve_symbol("_malloc_r").unwrap(), malloc_bp);
     emu.add_breakpoint(emu.resolve_symbol("_calloc_r").unwrap(), _calloc_bp);
     emu.add_breakpoint(emu.resolve_symbol("_realloc_r").unwrap(), _realloc_bp);
